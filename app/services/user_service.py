@@ -19,3 +19,29 @@ class UserService:
 
     def get_users(self):
         return [str(user) for user in self.users]
+
+    def get_user(self, user_id):
+        for user in self.users:
+            if user.user_id == user_id:
+                return user
+        return "User not found"
+
+    def update_user(self, user_id, name, email):
+        user = self.get_user(user_id)
+        if user == "User not found":
+            return "User not found"
+
+        if not validate_user(name, email):
+            return "Invalid user details"
+
+        user.name = name
+        user.email = email
+        return user
+
+    def delete_user(self, user_id):
+        user = self.get_user(user_id)
+        if user == "User not found":
+            return "User not found"
+
+        self.users.remove(user)
+        return "User deleted successfully"
