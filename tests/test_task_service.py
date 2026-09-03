@@ -63,6 +63,32 @@ class TestTaskService(unittest.TestCase):
         result = self.task_service.delete_task(999)
         self.assertEqual(result, "Task not found")
 
+    def test_update_task_status_pending_to_in_progress(self):
+        task = self.task_service.create_task("Task 6", "Description 6")
+        updated_task = self.task_service.update_task_status(task.task_id, "in_progress")
+        self.assertNotEqual(updated_task, "Task not found")
+        self.assertNotEqual(updated_task, "Invalid status")
+        self.assertEqual(updated_task.status, "in_progress")
+
+    def test_update_task_status_in_progress_to_completed(self):
+        task = self.task_service.create_task("Task 7", "Description 7")
+        self.task_service.update_task_status(task.task_id, "in_progress")
+        updated_task = self.task_service.update_task_status(task.task_id, "completed")
+        self.assertNotEqual(updated_task, "Task not found")
+        self.assertNotEqual(updated_task, "Invalid status")
+        self.assertEqual(updated_task.status, "completed")
+
+    def test_update_task_status_invalid_status(self):
+        task = self.task_service.create_task("Task 8", "Description 8")
+        result = self.task_service.update_task_status(task.task_id, "invalid_status")
+        self.assertEqual(result, "Invalid status")
+        self.assertEqual(task.status, "pending")
+
+    def test_update_task_status_not_found(self):
+        result = self.task_service.update_task_status(999, "in_progress")
+        self.assertEqual(result, "Task not found")
+
 
 if __name__ == "__main__":
     unittest.main()
+

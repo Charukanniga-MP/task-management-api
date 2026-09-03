@@ -45,4 +45,16 @@ class TaskService:
             return "Task not found"
 
         self.tasks.remove(task)
-        return "Task deleted successfully"
+        return "Task deleted successfully"
+
+    def update_task_status(self, task_id, status):
+        task = self.get_task(task_id)
+        if task == "Task not found":
+            return "Task not found"
+
+        if status not in {"pending", "in_progress", "completed"}:
+            return "Invalid status"
+
+        task.status = status
+        return task
+
