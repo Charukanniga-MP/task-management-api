@@ -88,7 +88,40 @@ class TestTaskService(unittest.TestCase):
         result = self.task_service.update_task_status(999, "in_progress")
         self.assertEqual(result, "Task not found")
 
+    def test_get_tasks_by_status_pending(self):
+        task1 = self.task_service.create_task("Task 1", "Pending task")
+        task2 = self.task_service.create_task("Task 2", "In progress task")
+        self.task_service.update_task_status(task2.task_id, "in_progress")
+
+        pending_tasks = self.task_service.get_tasks_by_status("pending")
+        self.assertEqual(len(pending_tasks), 1)
+        self.assertEqual(pending_tasks[0], task1)
+
+    def test_get_tasks_by_status_in_progress(self):
+        task1 = self.task_service.create_task("Task 1", "Pending task")
+        task2 = self.task_service.create_task("Task 2", "In progress task")
+        self.task_service.update_task_status(task2.task_id, "in_progress")
+
+        in_progress_tasks = self.task_service.get_tasks_by_status("in_progress")
+        self.assertEqual(len(in_progress_tasks), 1)
+        self.assertEqual(in_progress_tasks[0], task2)
+
+    def test_get_tasks_by_status_completed(self):
+        task1 = self.task_service.create_task("Task 1", "Pending task")
+        task2 = self.task_service.create_task("Task 2", "Completed task")
+        self.task_service.update_task_status(task2.task_id, "completed")
+
+        completed_tasks = self.task_service.get_tasks_by_status("completed")
+        self.assertEqual(len(completed_tasks), 1)
+        self.assertEqual(completed_tasks[0], task2)
+
+    def test_get_tasks_by_status_invalid_status(self):
+        self.task_service.create_task("Task 1", "Pending task")
+        result = self.task_service.get_tasks_by_status("invalid_status")
+        self.assertEqual(result, "Invalid status")
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

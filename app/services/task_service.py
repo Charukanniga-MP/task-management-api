@@ -57,4 +57,11 @@ class TaskService:
 
         task.status = status
         return task
+
+    def get_tasks_by_status(self, status):
+        if status not in {"pending", "in_progress", "completed"}:
+            return "Invalid status"
+
+        return [task for task in self.tasks if task.status == status]
+
 
