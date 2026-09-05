@@ -120,8 +120,45 @@ class TestTaskService(unittest.TestCase):
         result = self.task_service.get_tasks_by_status("invalid_status")
         self.assertEqual(result, "Invalid status")
 
+    def test_create_task_low_priority(self):
+        task = self.task_service.create_task("Task 1", "Description 1", priority="low")
+        self.assertNotEqual(task, "Invalid task details")
+        self.assertEqual(task.priority, "low")
+
+    def test_create_task_medium_priority(self):
+        task = self.task_service.create_task("Task 1", "Description 1", priority="medium")
+        self.assertNotEqual(task, "Invalid task details")
+        self.assertEqual(task.priority, "medium")
+
+    def test_create_task_high_priority(self):
+        task = self.task_service.create_task("Task 1", "Description 1", priority="high")
+        self.assertNotEqual(task, "Invalid task details")
+        self.assertEqual(task.priority, "high")
+
+    def test_create_task_invalid_priority(self):
+        result = self.task_service.create_task("Task 1", "Description 1", priority="invalid")
+        self.assertEqual(result, "Invalid task details")
+
+    def test_update_task_priority_success(self):
+        task = self.task_service.create_task("Task 1", "Description 1")
+        updated_task = self.task_service.update_task_priority(task.task_id, "high")
+        self.assertNotEqual(updated_task, "Task not found")
+        self.assertNotEqual(updated_task, "Invalid priority")
+        self.assertEqual(updated_task.priority, "high")
+
+    def test_update_task_priority_invalid_priority(self):
+        task = self.task_service.create_task("Task 1", "Description 1")
+        result = self.task_service.update_task_priority(task.task_id, "invalid")
+        self.assertEqual(result, "Invalid priority")
+        self.assertEqual(task.priority, "medium")
+
+    def test_update_task_priority_not_found(self):
+        result = self.task_service.update_task_priority(999, "high")
+        self.assertEqual(result, "Task not found")
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

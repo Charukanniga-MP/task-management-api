@@ -8,11 +8,18 @@ def validate_user(name, email):
     return True
 
 
-def validate_task(title, description):
+def validate_priority(priority):
+    return priority in {"low", "medium", "high"}
+
+
+def validate_task(title, description, priority="medium"):
     if not title:
         return False
 
     if not description:
+        return False
+
+    if not validate_priority(priority):
         return False
 
     return True

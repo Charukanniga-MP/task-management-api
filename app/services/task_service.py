@@ -1,5 +1,5 @@
 from app.models.task import Task
-from app.utils.validation import validate_task
+from app.utils.validation import validate_task, validate_priority
 from app.utils.helpers import generate_id
 
 
@@ -7,12 +7,12 @@ class TaskService:
     def __init__(self):
         self.tasks = []
 
-    def create_task(self, title, description):
-        if not validate_task(title, description):
+    def create_task(self, title, description, priority="medium"):
+        if not validate_task(title, description, priority):
             return "Invalid task details"
 
         task_id = generate_id(self.tasks)
-        task = Task(task_id, title, description)
+        task = Task(task_id, title, description, priority=priority)
         self.tasks.append(task)
 
         return task
@@ -58,10 +58,22 @@ class TaskService:
         task.status = status
         return task
 
+    def update_task_priority(self, task_id, priority):
+        task = self.get_task(task_id)
+        if task == "Task not found":
+            return "Task not found"
+
+        if not validate_priority(priority):
+            return "Invalid priority"
+
+        task.priority = priority
+        return task
+
     def get_tasks_by_status(self, status):
         if status not in {"pending", "in_progress", "completed"}:
             return "Invalid status"
 
         return [task for task in self.tasks if task.status == status]
+
 
 
