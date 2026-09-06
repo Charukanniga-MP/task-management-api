@@ -75,5 +75,13 @@ class TaskService:
 
         return [task for task in self.tasks if task.status == status]
 
+    def search_tasks(self, keyword):
+        if not keyword or not isinstance(keyword, str):
+            return []
+
+        keyword_lower = keyword.lower()
+        return [task for task in self.tasks if keyword_lower in task.title.lower()]
+
+
 
 

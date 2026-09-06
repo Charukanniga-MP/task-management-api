@@ -156,9 +156,44 @@ class TestTaskService(unittest.TestCase):
         result = self.task_service.update_task_priority(999, "high")
         self.assertEqual(result, "Task not found")
 
+    def test_search_tasks_exact_title(self):
+        task1 = self.task_service.create_task("Buy groceries", "Buy milk and eggs")
+        task2 = self.task_service.create_task("Clean house", "Clean kitchen")
+        results = self.task_service.search_tasks("Buy groceries")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], task1)
+
+    def test_search_tasks_partial_title(self):
+        task1 = self.task_service.create_task("Buy groceries", "Buy milk and eggs")
+        task2 = self.task_service.create_task("Clean house", "Clean kitchen")
+        results = self.task_service.search_tasks("groceries")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], task1)
+
+    def test_search_tasks_case_insensitive(self):
+        task1 = self.task_service.create_task("Buy Groceries", "Buy milk and eggs")
+        results = self.task_service.search_tasks("BUY GROCERIES")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], task1)
+
+        results_lower = self.task_service.search_tasks("buy groceries")
+        self.assertEqual(len(results_lower), 1)
+        self.assertEqual(results_lower[0], task1)
+
+    def test_search_tasks_no_matching_task(self):
+        self.task_service.create_task("Buy groceries", "Buy milk and eggs")
+        results = self.task_service.search_tasks("Nonexistent Task")
+        self.assertEqual(results, [])
+
+    def test_search_tasks_empty_keyword(self):
+        self.task_service.create_task("Buy groceries", "Buy milk and eggs")
+        results = self.task_service.search_tasks("")
+        self.assertEqual(results, [])
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 
