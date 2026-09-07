@@ -190,6 +190,43 @@ class TestTaskService(unittest.TestCase):
         results = self.task_service.search_tasks("")
         self.assertEqual(results, [])
 
+    def test_get_tasks_paginated_first_page(self):
+        tasks = [self.task_service.create_task(f"Task {i}", f"Desc {i}") for i in range(1, 8)]
+        result = self.task_service.get_tasks_paginated(page=1, limit=3)
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result, tasks[0:3])
+
+    def test_get_tasks_paginated_second_page(self):
+        tasks = [self.task_service.create_task(f"Task {i}", f"Desc {i}") for i in range(1, 8)]
+        result = self.task_service.get_tasks_paginated(page=2, limit=3)
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result, tasks[3:6])
+
+    def test_get_tasks_paginated_fewer_remaining_tasks(self):
+        tasks = [self.task_service.create_task(f"Task {i}", f"Desc {i}") for i in range(1, 8)]
+        result = self.task_service.get_tasks_paginated(page=3, limit=3)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result, tasks[6:7])
+
+    def test_get_tasks_paginated_beyond_available_tasks(self):
+        [self.task_service.create_task(f"Task {i}", f"Desc {i}") for i in range(1, 8)]
+        result = self.task_service.get_tasks_paginated(page=4, limit=3)
+        self.assertEqual(result, [])
+
+    def test_get_tasks_paginated_invalid_page(self):
+        self.task_service.create_task("Task 1", "Desc 1")
+        result_zero = self.task_service.get_tasks_paginated(page=0, limit=5)
+        self.assertEqual(result_zero, "Invalid page")
+        result_negative = self.task_service.get_tasks_paginated(page=-1, limit=5)
+        self.assertEqual(result_negative, "Invalid page")
+
+    def test_get_tasks_paginated_invalid_limit(self):
+        self.task_service.create_task("Task 1", "Desc 1")
+        result_zero = self.task_service.get_tasks_paginated(page=1, limit=0)
+        self.assertEqual(result_zero, "Invalid limit")
+        result_negative = self.task_service.get_tasks_paginated(page=1, limit=-5)
+        self.assertEqual(result_negative, "Invalid limit")
+
 
 if __name__ == "__main__":
     unittest.main()

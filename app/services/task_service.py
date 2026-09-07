@@ -20,6 +20,16 @@ class TaskService:
     def get_tasks(self):
         return [str(task) for task in self.tasks]
 
+    def get_tasks_paginated(self, page=1, limit=5):
+        if page <= 0:
+            return "Invalid page"
+        if limit <= 0:
+            return "Invalid limit"
+
+        start_index = (page - 1) * limit
+        end_index = start_index + limit
+        return self.tasks[start_index:end_index]
+
     def get_task(self, task_id):
         for task in self.tasks:
             if task.task_id == task_id:
