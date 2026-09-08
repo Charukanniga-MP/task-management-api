@@ -227,9 +227,67 @@ class TestTaskService(unittest.TestCase):
         result_negative = self.task_service.get_tasks_paginated(page=1, limit=-5)
         self.assertEqual(result_negative, "Invalid limit")
 
+    def test_sort_tasks_by_title_ascending(self):
+        t1 = self.task_service.create_task("Banana", "Desc B")
+        t2 = self.task_service.create_task("Apple", "Desc A")
+        t3 = self.task_service.create_task("Cherry", "Desc C")
+        sorted_tasks = self.task_service.sort_tasks(sort_by="title", descending=False)
+        self.assertEqual([t.title for t in sorted_tasks], ["Apple", "Banana", "Cherry"])
+
+    def test_sort_tasks_by_title_descending(self):
+        t1 = self.task_service.create_task("Banana", "Desc B")
+        t2 = self.task_service.create_task("Apple", "Desc A")
+        t3 = self.task_service.create_task("Cherry", "Desc C")
+        sorted_tasks = self.task_service.sort_tasks(sort_by="title", descending=True)
+        self.assertEqual([t.title for t in sorted_tasks], ["Cherry", "Banana", "Apple"])
+
+    def test_sort_tasks_by_priority(self):
+        t1 = self.task_service.create_task("Task 1", "Desc 1", priority="medium")
+        t2 = self.task_service.create_task("Task 2", "Desc 2", priority="low")
+        t3 = self.task_service.create_task("Task 3", "Desc 3", priority="high")
+        
+        sorted_asc = self.task_service.sort_tasks(sort_by="priority", descending=False)
+        self.assertEqual([t.priority for t in sorted_asc], ["low", "medium", "high"])
+
+        sorted_desc = self.task_service.sort_tasks(sort_by="priority", descending=True)
+        self.assertEqual([t.priority for t in sorted_desc], ["high", "medium", "low"])
+
+    def test_sort_tasks_by_status(self):
+        t1 = self.task_service.create_task("Task 1", "Desc 1")
+        t2 = self.task_service.create_task("Task 2", "Desc 2")
+        t3 = self.task_service.create_task("Task 3", "Desc 3")
+        
+        self.task_service.update_task_status(t1.task_id, "completed")
+        self.task_service.update_task_status(t2.task_id, "pending")
+        self.task_service.update_task_status(t3.task_id, "in_progress")
+
+        sorted_asc = self.task_service.sort_tasks(sort_by="status", descending=False)
+        self.assertEqual([t.status for t in sorted_asc], ["pending", "in_progress", "completed"])
+
+        sorted_desc = self.task_service.sort_tasks(sort_by="status", descending=True)
+        self.assertEqual([t.status for t in sorted_desc], ["completed", "in_progress", "pending"])
+
+    def test_sort_tasks_invalid_sort_field(self):
+        self.task_service.create_task("Task 1", "Desc 1")
+        result = self.task_service.sort_tasks(sort_by="invalid_field")
+        self.assertEqual(result, "Invalid sort field")
+
+    def test_sort_tasks_does_not_modify_original_list(self):
+        t1 = self.task_service.create_task("Banana", "Desc B")
+        t2 = self.task_service.create_task("Apple", "Desc A")
+        t3 = self.task_service.create_task("Cherry", "Desc C")
+        
+        original_copy = list(self.task_service.tasks)
+        sorted_tasks = self.task_service.sort_tasks(sort_by="title")
+        
+        self.assertNotEqual(self.task_service.tasks, sorted_tasks)
+        self.assertEqual(self.task_service.tasks, original_copy)
+        self.assertEqual(self.task_service.tasks, [t1, t2, t3])
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

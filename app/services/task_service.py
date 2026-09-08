@@ -92,6 +92,23 @@ class TaskService:
         keyword_lower = keyword.lower()
         return [task for task in self.tasks if keyword_lower in task.title.lower()]
 
+    def sort_tasks(self, sort_by="title", descending=False):
+        if sort_by not in {"title", "priority", "status"}:
+            return "Invalid sort field"
+
+        priority_order = {"low": 1, "medium": 2, "high": 3}
+        status_order = {"pending": 1, "in_progress": 2, "completed": 3}
+
+        if sort_by == "priority":
+            key_func = lambda task: priority_order.get(task.priority, 0)
+        elif sort_by == "status":
+            key_func = lambda task: status_order.get(task.status, 0)
+        else:
+            key_func = lambda task: getattr(task, sort_by)
+
+        return sorted(self.tasks, key=key_func, reverse=descending)
+
+
 
 
 
