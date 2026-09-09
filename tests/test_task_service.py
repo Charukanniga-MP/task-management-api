@@ -284,9 +284,74 @@ class TestTaskService(unittest.TestCase):
         self.assertEqual(self.task_service.tasks, original_copy)
         self.assertEqual(self.task_service.tasks, [t1, t2, t3])
 
+    def test_get_task_statistics_no_tasks(self):
+        stats = self.task_service.get_task_statistics()
+        expected = {
+            "total_tasks": 0,
+            "pending_tasks": 0,
+            "in_progress_tasks": 0,
+            "completed_tasks": 0,
+            "low_priority_tasks": 0,
+            "medium_priority_tasks": 0,
+            "high_priority_tasks": 0,
+        }
+        self.assertEqual(stats, expected)
+
+    def test_get_task_statistics_multiple_tasks(self):
+        t1 = self.task_service.create_task("Task 1", "Desc 1", priority="low")
+        t2 = self.task_service.create_task("Task 2", "Desc 2", priority="medium")
+        t3 = self.task_service.create_task("Task 3", "Desc 3", priority="high")
+        self.task_service.update_task_status(t2.task_id, "in_progress")
+        self.task_service.update_task_status(t3.task_id, "completed")
+
+        stats = self.task_service.get_task_statistics()
+        self.assertEqual(stats["total_tasks"], 3)
+        self.assertEqual(stats["pending_tasks"], 1)
+        self.assertEqual(stats["in_progress_tasks"], 1)
+        self.assertEqual(stats["completed_tasks"], 1)
+        self.assertEqual(stats["low_priority_tasks"], 1)
+        self.assertEqual(stats["medium_priority_tasks"], 1)
+        self.assertEqual(stats["high_priority_tasks"], 1)
+
+    def test_get_task_statistics_status_counts(self):
+        t1 = self.task_service.create_task("Task 1", "Desc 1")
+        t2 = self.task_service.create_task("Task 2", "Desc 2")
+        t3 = self.task_service.create_task("Task 3", "Desc 3")
+        t4 = self.task_service.create_task("Task 4", "Desc 4")
+        t5 = self.task_service.create_task("Task 5", "Desc 5")
+        
+        self.task_service.update_task_status(t3.task_id, "in_progress")
+        self.task_service.update_task_status(t4.task_id, "completed")
+        self.task_service.update_task_status(t5.task_id, "completed")
+
+        stats = self.task_service.get_task_statistics()
+        self.assertEqual(stats["pending_tasks"], 2)
+        self.assertEqual(stats["in_progress_tasks"], 1)
+        self.assertEqual(stats["completed_tasks"], 2)
+
+    def test_get_task_statistics_priority_counts(self):
+        self.task_service.create_task("Task 1", "Desc 1", priority="low")
+        self.task_service.create_task("Task 2", "Desc 2", priority="low")
+        self.task_service.create_task("Task 3", "Desc 3", priority="medium")
+        self.task_service.create_task("Task 4", "Desc 4", priority="high")
+        self.task_service.create_task("Task 5", "Desc 5", priority="high")
+        self.task_service.create_task("Task 6", "Desc 6", priority="high")
+
+        stats = self.task_service.get_task_statistics()
+        self.assertEqual(stats["low_priority_tasks"], 2)
+        self.assertEqual(stats["medium_priority_tasks"], 1)
+        self.assertEqual(stats["high_priority_tasks"], 3)
+
+    def test_get_task_statistics_total_task_count(self):
+        for i in range(4):
+            self.task_service.create_task(f"Task {i}", f"Desc {i}")
+        stats = self.task_service.get_task_statistics()
+        self.assertEqual(stats["total_tasks"], 4)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

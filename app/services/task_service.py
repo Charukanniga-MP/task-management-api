@@ -108,6 +108,35 @@ class TaskService:
 
         return sorted(self.tasks, key=key_func, reverse=descending)
 
+    def get_task_statistics(self):
+        stats = {
+            "total_tasks": len(self.tasks),
+            "pending_tasks": 0,
+            "in_progress_tasks": 0,
+            "completed_tasks": 0,
+            "low_priority_tasks": 0,
+            "medium_priority_tasks": 0,
+            "high_priority_tasks": 0,
+        }
+
+        for task in self.tasks:
+            if task.status == "pending":
+                stats["pending_tasks"] += 1
+            elif task.status == "in_progress":
+                stats["in_progress_tasks"] += 1
+            elif task.status == "completed":
+                stats["completed_tasks"] += 1
+
+            if task.priority == "low":
+                stats["low_priority_tasks"] += 1
+            elif task.priority == "medium":
+                stats["medium_priority_tasks"] += 1
+            elif task.priority == "high":
+                stats["high_priority_tasks"] += 1
+
+        return stats
+
+
 
 
 
