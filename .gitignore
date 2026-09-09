@@ -1,4 +1,54 @@
-venv/
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
 .env
+.env.local
+.env.*.local
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Data files (raw and processed data ignored, preserving directory structure placeholders)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.csv
+*.parquet
+*.xlsx
+*.h5
+
+# Model artifacts and binary checkpoints
+*.pkl
+*.joblib
+*.pt
+*.pth
+
+# Logs and Temporary files
+*.log
+*.tmp
+logs/
+scratch/
+.kilocode/
