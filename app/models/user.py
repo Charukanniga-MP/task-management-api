@@ -1,8 +1,17 @@
-class User:
-    def __init__(self, user_id, name, email):
-        self.user_id = user_id
-        self.name = name
-        self.email = email
+"""User domain model with full type hints.
 
-    def __str__(self):
+SOLID Principles Applied:
+- Single Responsibility Principle (SRP): Represents user domain entity state and string formatting.
+"""
+
+
+class User:
+    """Represents a User entity in the system."""
+
+    def __init__(self, user_id: int, name: str, email: str) -> None:
+        self.user_id: int = user_id
+        self.name: str = name
+        self.email: str = email
+
+    def __str__(self) -> str:
         return f"User(id={self.user_id}, name={self.name}, email={self.email})"
