@@ -3,4 +3,20 @@
 Provides foundation for task predictive modeling, productivity metrics, and ML analytics.
 """
 
+from task_analytics.data_iterator import (
+    CSVBatchIterator,
+    chain_csv_files,
+    csv_batch_generator,
+    islice_csv,
+    load_csv_eager,
+)
+
 __version__ = "0.1.0"
+
+__all__ = [
+    "CSVBatchIterator",
+    "csv_batch_generator",
+    "load_csv_eager",
+    "islice_csv",
+    "chain_csv_files",
+]
