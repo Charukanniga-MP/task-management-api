@@ -176,3 +176,121 @@ Measured using Python's standard `tracemalloc` library (`batch_size = 100`):
 #### Benchmark Conclusion
 - **Eager Loading**: Peak memory grows linearly with dataset row count ($O(N)$).
 - **Lazy Batch Iterator**: Peak memory remains virtually constant ($O(\text{Batch Size}) \approx 200 \text{ KB}$) across 100, 1,000, and 10,000 row datasets.
+
+---
+
+## 8. Day 3: OOP for Pipelines — Composition Over Inheritance
+
+### Overview & Objective
+Day 3 introduces modular Object-Oriented Design patterns for data processing pipelines. We implement a flexible data transformation pipeline using **Composition over Inheritance**, abstract base classes (`abc.ABC`), runtime step swapping, Python encapsulation, and clear guidelines on choosing between functions and classes.
+
+---
+
+### Core Concepts & Architecture
+
+#### 1. Abstract Base Class (`Step`)
+The `Step` class defines a strict contract using Python's standard `abc` module:
+```python
+from abc import ABC, abstractmethod
+
+class Step(ABC):
+    @abstractmethod
+    def execute(self, data):
+        pass
+```
+- Instantiating `Step` directly raises `TypeError`.
+- Any concrete subclass must implement `execute(self, data)`.
+
+#### 2. Interchangeable Concrete Steps
+We implement 4 concrete processing steps following the `Step` interface:
+- **`CleanDataStep`**: Removes `None` items, empty dictionaries, or records missing required keys.
+- **`NormalizeDataStep`**: Normalizes string values (stripping whitespace, lowercasing).
+- **`FilterDataStep`**: Filters data records matching specified field criteria or custom predicate functions.
+- **`PriorityFilterStep`**: Filters tasks specifically matching a given priority level (`high`, `medium`, `low`).
+
+#### 3. Pipeline Class (Composition)
+The `Pipeline` class is **composed of** (contains) `Step` objects:
+```python
+class Pipeline:
+    def __init__(self, steps: list[Step]):
+        self.steps = list(steps)
+
+    def run(self, data):
+        for step in self.steps:
+            data = step.execute(data)
+        return data
+```
+- `Pipeline` does **not** inherit from concrete step classes.
+- It receives step instances and processes data sequentially.
+
+#### 4. Runtime Step Swapping
+Because `Pipeline` relies on step composition rather than hardcoded inheritance, step objects can be replaced dynamically at runtime without modifying the `Pipeline` class definition:
+```python
+# Initial Pipeline
+pipeline = Pipeline([CleanDataStep(), NormalizeDataStep(), FilterDataStep(field="status", value="in_progress")])
+result1 = pipeline.run(data)
+
+# Swap Step at Runtime (without changing Pipeline class)
+pipeline.replace_step(2, PriorityFilterStep(priority="high"))
+result2 = pipeline.run(data)
+```
+
+---
+
+### Composition vs. Inheritance Guide
+
+| Concept | Definition | Pipeline Application |
+| :--- | :--- | :--- |
+| **Inheritance** ("Is-a") | Subclass inherits properties/methods from parent class. | Used for `Step(ABC)` interface contract where every concrete step *is a* `Step`. |
+| **Composition** ("Has-a") | Class contains references to objects of other classes to build functionality. | Used for `Pipeline` where a pipeline *has* multiple `Step` objects. |
+
+#### Key Takeaways:
+- **Why Composition for Pipelines?**: Steps can be reordered, added, or swapped dynamically at runtime without subclassing `Pipeline`.
+- **Risks of Deep Inheritance**: Rigid hierarchies lead to the *fragile base class problem*, tight coupling, and difficulty modifying parent behavior without breaking downstream subclasses.
+- **When Inheritance is Appropriate**: Defining shared abstract contracts or tightly coupled domain models with true "is-a" relationships.
+- **When Composition is Appropriate**: Combining interchangeable behaviors, dynamic workflows, and assembling components with "has-a" relationships.
+
+---
+
+### Python Encapsulation Conventions
+
+Python uses naming conventions rather than language-enforced access keywords (like `private`/`protected` in Java/C++):
+
+```python
+class EncapsulationDemo:
+    def __init__(self, name: str, protected_val: str, private_val: str):
+        self.name = name                 # Public: accessible anywhere
+        self._protected_val = protected_val  # Protected: convention indicating internal use
+        self.__private_val = private_val    # Private: compiler name-mangles to _EncapsulationDemo__private_val
+```
+- **Public (`name`)**: Accessible and modifiable anywhere.
+- **Protected (`_name`)**: Signals to developers that the attribute is intended for internal package use.
+- **Private (`__name`)**: Triggers Python's **name mangling** (prefixed with `_ClassName`), preventing accidental overrides in subclasses.
+
+---
+
+### Function vs. Class Guidelines
+
+#### Standalone Function Example:
+```python
+def clean_text(text: str) -> str:
+    return text.strip().lower()
+```
+
+#### Selection Rule of Thumb:
+- **Use a Function**: When performing stateless data transformations where no internal state, configuration, or object identity is maintained.
+- **Use a Class**: When encapsulating state, maintaining configuration, managing resources, or implementing polymorphic interfaces (such as `Step`).
+
+---
+
+### Running Demonstration & Tests
+
+#### Run Day 3 Pipeline Demonstration Script
+```bash
+python scripts/pipeline_demo.py
+```
+
+#### Run Full Unit Test Suite (Including Day 1, Day 2, and Day 3 tests)
+```bash
+python -m unittest discover tests
+```
