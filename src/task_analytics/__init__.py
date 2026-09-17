@@ -3,6 +3,13 @@
 Provides foundation for task predictive modeling, productivity metrics, and ML analytics.
 """
 
+from task_analytics.config import (
+    Device,
+    GenericConfigContainer,
+    PipelineConfig,
+    PipelineMode,
+    SimplePipelineConfig,
+)
 from task_analytics.data_iterator import (
     CSVBatchIterator,
     chain_csv_files,
@@ -37,5 +44,10 @@ __all__ = [
     "Pipeline",
     "EncapsulationDemo",
     "clean_text",
+    "Device",
+    "PipelineMode",
+    "SimplePipelineConfig",
+    "PipelineConfig",
+    "GenericConfigContainer",
 ]
 
