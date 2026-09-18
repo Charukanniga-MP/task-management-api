@@ -3,12 +3,20 @@
 Provides foundation for task predictive modeling, productivity metrics, and ML analytics.
 """
 
+from task_analytics.caching import (
+    calculate_task_priority_score,
+    get_task_category_weight,
+)
 from task_analytics.config import (
     Device,
     GenericConfigContainer,
     PipelineConfig,
     PipelineMode,
     SimplePipelineConfig,
+)
+from task_analytics.context_managers import (
+    TaskResourceManager,
+    managed_resource,
 )
 from task_analytics.data_iterator import (
     CSVBatchIterator,
@@ -17,6 +25,7 @@ from task_analytics.data_iterator import (
     islice_csv,
     load_csv_eager,
 )
+from task_analytics.decorators import retry, timeit
 from task_analytics.pipeline import (
     CleanDataStep,
     EncapsulationDemo,
@@ -49,5 +58,12 @@ __all__ = [
     "SimplePipelineConfig",
     "PipelineConfig",
     "GenericConfigContainer",
+    "timeit",
+    "retry",
+    "TaskResourceManager",
+    "managed_resource",
+    "calculate_task_priority_score",
+    "get_task_category_weight",
 ]
+
 

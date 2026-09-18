@@ -437,3 +437,147 @@ python -m mypy src/task_analytics/config.py scripts/config_demo.py tests/test_co
 ```bash
 python -m pytest -v
 ```
+
+---
+
+## 9. Day 5 — Decorators, Context Managers & Caching
+
+Day 5 introduces modular Python mechanisms for managing cross-cutting concerns (logging, timing, exception retries, resource lifecycles, and caching) without polluting core business logic.
+
+---
+
+### 1. Python Decorators & `functools.wraps`
+
+#### What is a Decorator?
+A decorator is a function that takes another function as an argument, adds extra behavior (such as timing, logging, or authentication), and returns a modified wrapper function.
+
+#### Why `functools.wraps` is Critical
+When a function is wrapped by a decorator, its standard attributes (`__name__`, `__doc__`, `__module__`) are replaced by the wrapper function's metadata. 
+`@functools.wraps(func)` copies the original function's metadata to the wrapper function, preserving docstrings and function names for debugging and documentation tools.
+
+---
+
+### 2. Custom Decorators: `@timeit` and Parameterized `@retry`
+
+#### `@timeit` Decorator
+Measures function execution duration using `time.perf_counter()` and logs the execution duration along with the function name:
+```python
+from functools import wraps
+import time, logging
+
+logger = logging.getLogger("task_analytics.decorators")
+
+def timeit(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        res = func(*args, **kwargs)
+        duration = time.perf_counter() - start
+        logger.info(f"Function '{func.__name__}' executed in {duration:.6f} seconds.")
+        return res
+    return wrapper
+```
+
+#### Parameterized `@retry(max_attempts=N)`
+A decorator that accepts arguments uses a three-tier function structure:
+```text
+retry(max_attempts=3)  --> Returns a Decorator function
+   ↓
+decorator(func)        --> Returns a Wrapper function
+   ↓
+wrapper(*args, **kwargs) --> Executes target function with retry loop
+```
+
+```python
+def retry(max_attempts: int = 3):
+    if max_attempts <= 0:
+        raise ValueError("max_attempts must be > 0")
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as exc:
+                    if attempt == max_attempts:
+                        raise exc
+                    logger.warning(f"Attempt {attempt}/{max_attempts} failed: {exc}. Retrying...")
+        return wrapper
+    return decorator
+```
+
+---
+
+### 3. Context Managers & Resource Safety
+
+Context managers implement the `with` statement protocol to guarantee that setup and teardown actions (such as opening files or database connections) are executed predictably.
+
+#### Class-Based (`__enter__` and `__exit__`)
+```python
+class TaskResourceManager:
+    def __init__(self, resource_name: str):
+        self.resource_name = resource_name
+
+    def __enter__(self):
+        logger.info(f"Acquired resource: {self.resource_name}")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        logger.info(f"Cleaned up resource: {self.resource_name}")
+        return False  # Do not swallow exceptions
+```
+
+#### Generator-Based (`@contextlib.contextmanager`)
+```python
+import contextlib
+
+@contextlib.contextmanager
+def managed_resource(resource_name: str):
+    logger.info(f"Opened resource: {resource_name}")
+    try:
+        yield {"name": resource_name}
+    finally:
+        logger.info(f"Cleaned up resource: {resource_name}")
+```
+
+> **Cleanup Guarantee**: In both implementations, cleanup occurs in the `finally` block or `__exit__` method even if an exception is raised inside the `with` block!
+
+---
+
+### 4. Caching & `functools.lru_cache`
+
+#### How `lru_cache` Works
+`@lru_cache(maxsize=128)` caches function return values for specific argument combinations. Repeated calls with identical inputs return immediately without recalculation.
+- `maxsize`: Upper bound on cached entries.
+- `cache_clear()`: Resets the cache dictionary.
+
+#### Caching Dangers & Mitigation
+1. **Mutable Return Values**: Modifying a cached dictionary or list mutates the shared cache entry, affecting subsequent callers.
+   - *Mitigation*: Return immutable types (`float`, `tuple`, `str`) or return copies.
+2. **Unbounded Memory Growth**: Using `maxsize=None` can cause memory leaks if inputs are unbounded.
+   - *Mitigation*: Always specify a reasonable `maxsize` (e.g. 128).
+3. **Stale Data**: Cached outputs can become outdated if underlying data sources change.
+   - *Mitigation*: Use `func.cache_clear()` when data updates.
+
+---
+
+### 5. Application to Actual Pipeline
+
+All three Day 5 features are integrated directly into `Pipeline`:
+- `@timeit` applied to `Pipeline.run(data)` to monitor total execution duration.
+- `@retry(max_attempts=3)` applied to `Pipeline.load_data_source(fetcher_fn)` to recover from transient data read/fetch errors.
+- `TaskResourceManager` applied to `Pipeline.run_with_resource(resource_name, data)` to guarantee data resource cleanup.
+
+---
+
+### 6. Running Day 5 Demo & Test Suite
+
+#### Run Day 5 Demonstration Script
+```bash
+python scripts/day5_demo.py
+```
+
+#### Run Full Test Suite (Day 1–Day 5)
+```bash
+python -m pytest -v
+```

@@ -10,6 +10,9 @@ This module provides:
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Union
+from task_analytics.context_managers import TaskResourceManager, managed_resource
+from task_analytics.decorators import retry, timeit
+
 
 
 class Step(ABC):
@@ -253,8 +256,11 @@ class Pipeline:
         self.steps[index] = new_step
         return self
 
+    @timeit
     def run(self, data: Any) -> Any:
         """Executes each step sequentially on the data.
+
+        Decorated with @timeit to log pipeline execution duration.
 
         Args:
             data: Input data to be processed.
@@ -266,6 +272,37 @@ class Pipeline:
         for step in self.steps:
             current_data = step.execute(current_data)
         return current_data
+
+    @retry(max_attempts=3)
+    def load_data_source(self, fetcher_fn: Callable[[], Any]) -> Any:
+        """Loads data from a data source or stream with automatic retries on failure.
+
+        Decorated with @retry(max_attempts=3) to automatically retry failing data fetches.
+
+        Args:
+            fetcher_fn: Callable that returns input data or raises an exception.
+
+        Returns:
+            Fetched data.
+        """
+        return fetcher_fn()
+
+    def run_with_resource(self, resource_name: str, data: Any) -> Any:
+        """Executes the pipeline within a managed resource context.
+
+        Guarantees that resource cleanup/release occurs even if pipeline execution
+        raises an exception.
+
+        Args:
+            resource_name: Name or path identifier of the resource.
+            data: Input data for the pipeline.
+
+        Returns:
+            Transformed data result.
+        """
+        with TaskResourceManager(resource_name) as resource:
+            return self.run(data)
+
 
     def __repr__(self) -> str:
         step_names = [type(s).__name__ for s in self.steps]
