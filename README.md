@@ -581,3 +581,93 @@ python scripts/day5_demo.py
 ```bash
 python -m pytest -v
 ```
+
+---
+
+## 9. Day 6 — Exception Hierarchies & Error Design
+
+### 1. Python Exception Hierarchy & Custom Exceptions
+In Python, all built-in exceptions inherit from `BaseException`, with standard application errors inheriting from `Exception`. Creating custom exceptions allows projects to define specific error categories that represent real failure modes in the application domain.
+
+```text
+Exception
+└── PipelineError
+    ├── ConfigError
+    ├── DataValidationError
+    └── ProcessingError
+```
+
+### 2. Project Exception Hierarchy
+All project-specific exceptions derive from a single base class `PipelineError`:
+
+- **`PipelineError(Exception)`**: Base exception for all pipeline and task analytics errors.
+  - Catching `PipelineError` at the top level catches all project-specific errors without swallowing unrelated Python system exceptions (`KeyboardInterrupt`, `SystemExit`, `MemoryError`, `TypeError`).
+- **`ConfigError(PipelineError)`**: Raised when configuration validation, instantiation, or loading fails (e.g. invalid `batch_size <= 0`, out-of-range `threshold`, or non-existent `data_path`).
+- **`DataValidationError(PipelineError)`**: Raised when input data is missing, malformed, or fails type/schema validation (e.g. non-existent CSV files, negative batch sizes, or corrupt CSV rows).
+- **`ProcessingError(PipelineError)`**: Raised when a pipeline step or transformation fails during execution (e.g. type conversion failures in `NormalizeDataStep`, invalid record structures in `CleanDataStep`).
+
+### 3. Catching Base vs Specific Exceptions
+- Catching `PipelineError` allows top-level entry points to catch **all** known project errors in a single handler:
+  ```python
+  try:
+      run_pipeline()
+  except PipelineError as error:
+      print(f"Pipeline failed: {error}")
+  ```
+- Catching a specific subclass (`ConfigError`, `DataValidationError`, `ProcessingError`) allows precise, tailored recovery at intermediate layers:
+  ```python
+  try:
+      config = validate_pipeline_config(config_dict)
+  except ConfigError as err:
+      logger.warning("Configuration invalid; loading fallback defaults...")
+  ```
+
+### 4. Error Message Design Principles
+Every custom error message is designed to explain clearly to the user without needing to read the source code:
+1. **WHAT failed**: High-level failure operation.
+2. **WHERE it failed**: The exact component, class, or function name.
+3. **WHY it failed**: The exact parameter, value, or condition that triggered the failure.
+
+*Example*:
+> `"Pipeline processing failed in NormalizeDataStep: cannot convert value 'abc' for field 'estimated_hours' to float."`
+
+### 5. Exception Propagation & Layering Strategy
+- **Low-Level Code**: Detects anomalies and raises specific custom exceptions (`ConfigError`, `DataValidationError`, `ProcessingError`).
+- **Intermediate Code**: Lets exceptions propagate upward cleanly. Intermediate layers only catch exceptions they can actually handle or recover from.
+- **Top-Level Code**: Catches `PipelineError`, logs/displays user-facing error messages cleanly without exposing raw Python tracebacks.
+
+### 6. Exception Chaining (`raise ... from original_error`)
+When catching a lower-level Python exception (e.g. `ValueError`) and re-raising a project-specific `ProcessingError`, exception chaining preserves the original cause via `__cause__`:
+
+```python
+try:
+    value = float(raw_value)
+except ValueError as original_error:
+    raise ProcessingError(
+        f"Pipeline processing failed in NormalizeDataStep: cannot convert value '{raw_value}' to float."
+    ) from original_error
+```
+
+### 7. `try / except / else / finally` Semantics
+- **`try`**: Contains code that may raise an exception.
+- **`except`**: Catches and handles specific exception(s) if raised inside `try`.
+- **`else`**: Executes **ONLY** when the `try` block completes successfully without raising any exception.
+- **`finally`**: Executes **ALWAYS**, regardless of whether an exception occurred, was caught, or was re-raised. (Used for cleanup/resource release).
+
+### 8. Dangers of Bare `except:` & Broad `except Exception:`
+- Bare `except:` catches `BaseException`, including `KeyboardInterrupt` and `SystemExit`, preventing users from stopping scripts with Ctrl+C.
+- Broad `except Exception:` catches all standard exceptions, including unexpected syntax bugs, `TypeError`, or `NameError`, hiding real programming bugs.
+- Silently swallowing errors (`except Exception: pass`) leads to silent data corruption and makes debugging nearly impossible.
+- **Best Practice**: Catch specific exceptions (`except ConfigError:`) or project base exceptions (`except PipelineError:`).
+
+### 9. Running Day 6 Demo & Test Suite
+
+#### Run Day 6 Demonstration Script
+```bash
+python scripts/day6_demo.py
+```
+
+#### Run Full Test Suite (Day 1–Day 6)
+```bash
+python -m pytest -v
+```

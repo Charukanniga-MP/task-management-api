@@ -10,9 +10,11 @@ Demonstrates:
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from task_analytics.exceptions import ConfigError
 
 # ==============================================================================
 # 1. ENUMS (Fixed-Choice Fields)
@@ -130,7 +132,9 @@ class PipelineConfig(BaseModel):
     def validate_batch_size(cls, value: int) -> int:
         """Validate that batch_size is strictly positive (> 0)."""
         if value <= 0:
-            raise ValueError(f"batch_size must be greater than 0, got {value}")
+            raise ConfigError(
+                f"Configuration failed in PipelineConfig: batch_size must be greater than 0, got {value}."
+            )
         return value
 
     @field_validator("threshold")
@@ -138,7 +142,9 @@ class PipelineConfig(BaseModel):
     def validate_threshold(cls, value: float) -> float:
         """Validate that threshold lies within range [0.0, 1.0]."""
         if value < 0.0 or value > 1.0:
-            raise ValueError(f"threshold must be between 0.0 and 1.0, got {value}")
+            raise ConfigError(
+                f"Configuration failed in PipelineConfig: threshold must be between 0.0 and 1.0, got {value}."
+            )
         return value
 
     @field_validator("data_path")
@@ -150,5 +156,27 @@ class PipelineConfig(BaseModel):
         """
         resolved_path = value.resolve()
         if not resolved_path.exists():
-            raise ValueError(f"data_path must point to an existing path on disk: '{value}'")
+            raise ConfigError(
+                f"Configuration failed in PipelineConfig: data_path must point to an existing path on disk: '{value}'."
+            )
         return value
+
+
+def validate_pipeline_config(config_dict: Dict[str, Any]) -> PipelineConfig:
+    """Helper function to load and validate pipeline configuration dictionary.
+
+    Args:
+        config_dict: Dictionary containing configuration parameters.
+
+    Returns:
+        Validated PipelineConfig instance.
+
+    Raises:
+        ConfigError: If configuration fails validation, detailing WHAT, WHERE, and WHY.
+    """
+    try:
+        return PipelineConfig(**config_dict)
+    except ValidationError as err:
+        raise ConfigError(
+            f"Configuration failed in PipelineConfig: invalid configuration options provided. {err}"
+        ) from err

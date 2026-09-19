@@ -26,6 +26,12 @@ from task_analytics.data_iterator import (
     load_csv_eager,
 )
 from task_analytics.decorators import retry, timeit
+from task_analytics.exceptions import (
+    ConfigError,
+    DataValidationError,
+    PipelineError,
+    ProcessingError,
+)
 from task_analytics.pipeline import (
     CleanDataStep,
     EncapsulationDemo,
@@ -40,6 +46,10 @@ from task_analytics.pipeline import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "PipelineError",
+    "ConfigError",
+    "DataValidationError",
+    "ProcessingError",
     "CSVBatchIterator",
     "csv_batch_generator",
     "load_csv_eager",

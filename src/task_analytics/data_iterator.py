@@ -32,6 +32,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Union
 
+from task_analytics.exceptions import DataValidationError
+
 
 class CSVBatchIterator:
     """Custom lazy-loading iterator over CSV file(s) that yields data batch-by-batch.
@@ -58,15 +60,18 @@ class CSVBatchIterator:
             dict_reader: Whether to parse CSV rows as dictionaries.
 
         Raises:
-            ValueError: If batch_size < 1 or path does not exist.
-            FileNotFoundError: If the specified path cannot be found.
+            DataValidationError: If batch_size < 1 or path does not exist.
         """
         if batch_size < 1:
-            raise ValueError(f"batch_size must be at least 1, got {batch_size}")
+            raise DataValidationError(
+                f"Data validation failed in CSVBatchIterator: batch_size must be at least 1, got {batch_size}."
+            )
 
         input_path = Path(path)
         if not input_path.exists():
-            raise FileNotFoundError(f"Path does not exist: {input_path}")
+            raise DataValidationError(
+                f"Data validation failed in CSVBatchIterator: path '{input_path}' does not exist."
+            )
 
         if input_path.is_dir():
             # Find all CSV files in directory sorted deterministically
@@ -196,7 +201,9 @@ def csv_batch_generator(
     """
     input_path = Path(path)
     if not input_path.exists():
-        raise FileNotFoundError(f"Path does not exist: {input_path}")
+        raise DataValidationError(
+            f"Data validation failed in csv_batch_generator: path '{input_path}' does not exist."
+        )
 
     files = sorted(list(input_path.glob("*.csv"))) if input_path.is_dir() else [input_path]
 
@@ -231,7 +238,9 @@ def load_csv_eager(
     """
     input_path = Path(path)
     if not input_path.exists():
-        raise FileNotFoundError(f"Path does not exist: {input_path}")
+        raise DataValidationError(
+            f"Data validation failed in load_csv_eager: path '{input_path}' does not exist."
+        )
 
     files = sorted(list(input_path.glob("*.csv"))) if input_path.is_dir() else [input_path]
     all_data = []
@@ -264,6 +273,10 @@ def islice_csv(
         List of selected CSV rows.
     """
     input_path = Path(path)
+    if not input_path.exists():
+        raise DataValidationError(
+            f"Data validation failed in islice_csv: path '{input_path}' does not exist."
+        )
     with open(input_path, mode="r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f) if dict_reader else csv.reader(f)
         # itertools.islice consumes only the specified slice lazily

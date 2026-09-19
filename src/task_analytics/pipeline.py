@@ -10,9 +10,10 @@ This module provides:
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Union
+
 from task_analytics.context_managers import TaskResourceManager, managed_resource
 from task_analytics.decorators import retry, timeit
-
+from task_analytics.exceptions import ProcessingError
 
 
 class Step(ABC):
@@ -53,7 +54,15 @@ class CleanDataStep(Step):
 
         Returns:
             Cleaned list or record.
+
+        Raises:
+            ProcessingError: If data is an invalid unsupported type.
         """
+        if data is not None and not isinstance(data, (list, dict, str)):
+            raise ProcessingError(
+                f"Pipeline processing failed in CleanDataStep: expected list, dict, or str, got {type(data).__name__}."
+            )
+
         if isinstance(data, list):
             cleaned = []
             for item in data:
@@ -82,24 +91,33 @@ class CleanDataStep(Step):
 
 
 class NormalizeDataStep(Step):
-    """Concrete step that normalizes data fields (e.g. lowercasing strings, trimming whitespace)."""
+    """Concrete step that normalizes data fields (e.g. lowercasing strings, trimming whitespace, converting numeric fields)."""
 
-    def __init__(self, target_fields: Optional[List[str]] = None):
+    def __init__(
+        self,
+        target_fields: Optional[List[str]] = None,
+        numeric_fields: Optional[List[str]] = None,
+    ):
         """Initialize NormalizeDataStep.
 
         Args:
-            target_fields: Specific dict keys to normalize. If None, normalizes all string values.
+            target_fields: Specific dict keys to normalize strings for. If None, normalizes all string values.
+            numeric_fields: Specific dict keys that must be converted to float.
         """
         self.target_fields = target_fields
+        self.numeric_fields = numeric_fields or []
 
     def execute(self, data: Any) -> Any:
-        """Normalizes string fields in input records.
+        """Normalizes string fields and converts numeric fields in input records.
 
         Args:
             data: List of dictionaries or a single dictionary.
 
         Returns:
             Normalized list of dictionaries or single dictionary.
+
+        Raises:
+            ProcessingError: If type conversion fails on a numeric field, chained from original exception.
         """
         if isinstance(data, list):
             return [self._normalize_record(record) for record in data]
@@ -114,7 +132,15 @@ class NormalizeDataStep(Step):
             return record
         normalized = dict(record)
         for key, value in normalized.items():
-            if isinstance(value, str):
+            if key in self.numeric_fields:
+                try:
+                    normalized[key] = float(value)
+                except (ValueError, TypeError) as original_error:
+                    raise ProcessingError(
+                        f"Pipeline processing failed in NormalizeDataStep: "
+                        f"cannot convert value '{value}' for field '{key}' to float."
+                    ) from original_error
+            elif isinstance(value, str):
                 if self.target_fields is None or key in self.target_fields:
                     normalized[key] = value.strip().lower()
         return normalized
