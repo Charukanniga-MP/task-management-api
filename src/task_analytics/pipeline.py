@@ -9,11 +9,15 @@ This module provides:
 """
 
 from abc import ABC, abstractmethod
+import logging
+import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from task_analytics.context_managers import TaskResourceManager, managed_resource
 from task_analytics.decorators import retry, timeit
 from task_analytics.exceptions import ProcessingError
+
+logger = logging.getLogger(__name__)
 
 
 class Step(ABC):
@@ -287,6 +291,8 @@ class Pipeline:
         """Executes each step sequentially on the data.
 
         Decorated with @timeit to log pipeline execution duration.
+        Instruments structured logging for pipeline/step starts, completions, durations,
+        and processed record counts.
 
         Args:
             data: Input data to be processed.
@@ -294,9 +300,51 @@ class Pipeline:
         Returns:
             Final transformed data result.
         """
+        pipeline_start = time.perf_counter()
+        initial_count = len(data) if isinstance(data, list) else (1 if data is not None else 0)
+        logger.info(
+            "Pipeline execution started.",
+            extra={"records_processed": initial_count, "step_count": len(self.steps)},
+        )
+
         current_data = data
         for step in self.steps:
-            current_data = step.execute(current_data)
+            step_name = step.__class__.__name__
+            step_start = time.perf_counter()
+            logger.info(
+                f"Step started: {step_name}",
+                extra={"pipeline_step": step_name},
+            )
+            try:
+                current_data = step.execute(current_data)
+                step_duration = time.perf_counter() - step_start
+                step_records = len(current_data) if isinstance(current_data, list) else (1 if current_data is not None else 0)
+                logger.info(
+                    f"Step completed: {step_name}",
+                    extra={
+                        "pipeline_step": step_name,
+                        "duration": round(step_duration, 6),
+                        "records_processed": step_records,
+                    },
+                )
+            except Exception as exc:
+                step_duration = time.perf_counter() - step_start
+                logger.error(
+                    f"Step failed: {step_name} - {exc}",
+                    extra={
+                        "pipeline_step": step_name,
+                        "duration": round(step_duration, 6),
+                    },
+                    exc_info=True,
+                )
+                raise
+
+        total_duration = time.perf_counter() - pipeline_start
+        final_count = len(current_data) if isinstance(current_data, list) else (1 if current_data is not None else 0)
+        logger.info(
+            "Pipeline execution completed.",
+            extra={"duration": round(total_duration, 6), "records_processed": final_count},
+        )
         return current_data
 
     @retry(max_attempts=3)

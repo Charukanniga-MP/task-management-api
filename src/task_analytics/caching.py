@@ -37,7 +37,7 @@ from functools import lru_cache
 import logging
 from typing import Dict, Tuple
 
-logger = logging.getLogger("task_analytics.caching")
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=128)

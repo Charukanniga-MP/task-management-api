@@ -28,11 +28,14 @@ Iteration Protocol Concepts Explained:
 
 import csv
 import itertools
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Union
 
 from task_analytics.exceptions import DataValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class CSVBatchIterator:
@@ -90,6 +93,11 @@ class CSVBatchIterator:
         self._current_file_obj = None
         self._csv_reader = None
 
+        logger.debug(
+            "Initialized CSVBatchIterator",
+            extra={"files_count": len(self.file_paths), "batch_size": self.batch_size},
+        )
+
     def __iter__(self) -> "CSVBatchIterator":
         """Demonstrates __iter__() in Python Iteration Protocol.
 
@@ -136,8 +144,16 @@ class CSVBatchIterator:
         # Raising StopIteration tells Python's iteration loop to terminate cleanly.
         if not batch:
             self._close_current_file()
+            logger.info(
+                "Exhausted all CSV data streams in CSVBatchIterator.",
+                extra={"files_processed": len(self.file_paths)},
+            )
             raise StopIteration
 
+        logger.debug(
+            f"Yielded batch of {len(batch)} records",
+            extra={"records_processed": len(batch)},
+        )
         return batch
 
     def _open_next_file(self) -> bool:
@@ -154,6 +170,10 @@ class CSVBatchIterator:
         else:
             self._csv_reader = csv.reader(self._current_file_obj)
 
+        logger.info(
+            f"Opened CSV file: '{target_file.name}'",
+            extra={"files_processed": self._current_file_idx, "file_path": str(target_file)},
+        )
         return True
 
     def _close_current_file(self) -> None:

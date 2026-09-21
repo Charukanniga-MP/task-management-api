@@ -671,3 +671,121 @@ python scripts/day6_demo.py
 ```bash
 python -m pytest -v
 ```
+
+---
+
+## 10. Day 7 — Structured Logging & Production Debugging
+
+### 1. Fundamentals of Python Logging
+Logging is the systematic recording of events, diagnostics, operational state, and errors during application execution. Unlike simple output printing, standard Python logging (`import logging`) provides thread safety, log levels, output destinations (handlers), message formatting, and metadata contextualization.
+
+- **Logger**: The application entry point (`logger = logging.getLogger(__name__)`). Loggers provide methods (`info()`, `debug()`, `warning()`, `error()`, `exception()`) to emit log records.
+- **Handler**: Determines where log records are dispatched (e.g., `StreamHandler` for standard stdout/stderr, `FileHandler` for disk log files).
+- **Formatter**: Defines the layout and layout formatting of log records into output text or structured JSON.
+
+### 2. Standard Log Level Hierarchy
+Python logging defines 5 standard severity levels used to categorize messages:
+
+| Log Level | Numeric | Meaning & Typical Usage |
+| :--- | :--- | :--- |
+| **`DEBUG`** | 10 | Fine-grained internal info for developers (e.g., CSV batch yields, internal parameter values). |
+| **`INFO`** | 20 | High-level operational milestones (e.g., pipeline start/completion, step start/completion). |
+| **`WARNING`** | 30 | Recoverable or unexpected situations that don't halt execution (e.g., retrying a failed fetch). |
+| **`ERROR`** | 40 | Failed operations or step failures that disrupt normal processing. |
+| **`CRITICAL`** | 50 | Severe application-level failures requiring immediate intervention. |
+
+### 3. Centralized Logging Configuration (`configure_logging`)
+Centralized logging ensures that logging setup occurs **once** at the application entry point using `src/task_analytics/logging_config.py`.
+
+```python
+from task_analytics import configure_logging
+
+# Configure logging centrally for production with file logging
+logger = configure_logging(
+    level="DEBUG",
+    log_file="logs/day7_demo.log",
+    env="production",
+)
+```
+
+All other application modules simply instantiate module loggers:
+```python
+import logging
+logger = logging.getLogger(__name__)
+```
+Module-level configuration calls (such as `logging.basicConfig()`) are strictly forbidden inside library code to prevent duplicate handlers or conflicting formats.
+
+### 4. Structured / JSON Logging Architecture
+Production systems ingest logs into centralized log indexing and monitoring platforms (e.g., Datadog, Elasticsearch, CloudWatch). Structured JSON format renders each log record as a single-line valid JSON object:
+
+```json
+{
+  "timestamp": "2026-09-21T15:09:50.802494+00:00",
+  "level": "INFO",
+  "logger": "task_analytics.pipeline",
+  "message": "Step completed: CleanDataStep",
+  "module": "pipeline",
+  "function": "run",
+  "line": 322,
+  "pipeline_step": "CleanDataStep",
+  "duration": 0.000368,
+  "records_processed": 1
+}
+```
+
+Key attributes in structured log records:
+- Core Metadata: `timestamp`, `level`, `logger`, `message`, `module`, `function`, `line`.
+- Contextual Extras: `pipeline_step`, `duration`, `records_processed`, `files_processed`, `run_id`.
+- Exception Extras: `error_type`, `error_message`, `traceback`.
+
+### 5. Development vs. Production Logging
+- **Development Mode (`env="development"`)**: Human-readable formatted console text output (`TextFormatter`) for quick visual debugging.
+- **Production Mode (`env="production"`)**: Single-line structured JSON records (`JSONFormatter`) with disk file persistence (`logs/day7_demo.log`).
+
+### 6. Why `print()` is Inappropriate for Production Pipelines
+1. **No Severity Levels**: `print()` cannot distinguish between informational messages and critical crashes.
+2. **No Destination Routing**: `print()` writes only to standard output (`sys.stdout`) without built-in support for log files or rotation.
+3. **Missing Metadata**: `print()` lacks automated timestamps, logger names, module names, line numbers, or execution contexts.
+4. **Not Machine-Readable**: Unstructured text from `print()` cannot be parsed cleanly by log aggregators.
+5. **Thread Safety**: `print()` is not guaranteed to be thread-safe in multi-threaded environments.
+
+### 7. Exception Tracebacks with `logger.exception()`
+When handling errors, calling `logger.error(str(e))` loses the stack traceback!
+`logger.exception("Message")` or `logger.error("Message", exc_info=True)` automatically captures the full stack trace and exception cause chain:
+
+```python
+try:
+    pipeline.run(invalid_data)
+except PipelineError as exc:
+    logger.exception("Caught pipeline processing failure: %s", exc)
+```
+
+In `JSONFormatter`, tracebacks are formatted cleanly into the `"traceback"` field of the JSON log entry, enabling complete offline failure diagnosis without rerunning the code.
+
+### 8. Pipeline & Data Iterator Instrumentation
+- **`Pipeline.run()`**: Logs execution start (`INFO`), step start (`INFO`), step completion (`INFO`) with step duration and processed record count, and step failure (`ERROR`) with full `exc_info` traceback.
+- **`CSVBatchIterator`**: Logs CSV file opens (`INFO`), file completions (`INFO`), and batch yields (`DEBUG`).
+- **`@timeit` / `@retry`**: Log function duration and attempt retries using structured extras (`function`, `duration`, `attempt`).
+
+### 9. Running Day 7 Demo & Test Suite
+
+#### Run Day 7 Demonstration Script
+```bash
+python scripts/day7_demo.py
+```
+This executes two deterministic runs:
+1. **RUN 1 (SUCCESSFUL RUN)**: Processes valid tasks and logs step/duration/record metrics.
+2. **RUN 2 (DELIBERATELY FAILED RUN)**: Intentionally triggers a `ProcessingError` in `NormalizeDataStep`, catching `PipelineError` at top level and saving the full traceback to `logs/day7_demo.log`.
+
+#### Inspect Generated Log File
+The demonstration log file is saved to:
+`logs/day7_demo.log`
+
+#### Run Full Test Suite (Day 1–Day 7)
+```bash
+python -m pytest -v
+```
+or
+```bash
+python -m unittest discover -s tests -v
+```

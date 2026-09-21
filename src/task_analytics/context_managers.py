@@ -10,7 +10,7 @@ import logging
 from typing import Any, Generator, Optional, Union
 
 # Configure module logger
-logger = logging.getLogger("task_analytics.context_managers")
+logger = logging.getLogger(__name__)
 
 
 class TaskResourceManager:

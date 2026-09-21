@@ -32,6 +32,11 @@ from task_analytics.exceptions import (
     PipelineError,
     ProcessingError,
 )
+from task_analytics.logging_config import (
+    JSONFormatter,
+    TextFormatter,
+    configure_logging,
+)
 from task_analytics.pipeline import (
     CleanDataStep,
     EncapsulationDemo,
@@ -46,6 +51,9 @@ from task_analytics.pipeline import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "configure_logging",
+    "JSONFormatter",
+    "TextFormatter",
     "PipelineError",
     "ConfigError",
     "DataValidationError",

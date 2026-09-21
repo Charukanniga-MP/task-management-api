@@ -10,14 +10,8 @@ import logging
 import time
 from typing import Any, Callable
 
-# Configure module-level logger
-logger = logging.getLogger("task_analytics.decorators")
-if not logger.handlers and not logging.getLogger().handlers:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+# Module-level logger relying on centralized logging configuration
+logger = logging.getLogger(__name__)
 
 
 def timeit(func: Callable) -> Callable:
@@ -37,12 +31,16 @@ def timeit(func: Callable) -> Callable:
         try:
             result = func(*args, **kwargs)
             elapsed_sec = time.perf_counter() - start_time
-            logger.info(f"Function '{func.__name__}' executed in {elapsed_sec:.6f} seconds.")
+            logger.info(
+                f"Function '{func.__name__}' executed in {elapsed_sec:.6f} seconds.",
+                extra={"function": func.__name__, "duration": round(elapsed_sec, 6)},
+            )
             return result
         except Exception as exc:
             elapsed_sec = time.perf_counter() - start_time
             logger.warning(
-                f"Function '{func.__name__}' failed after {elapsed_sec:.6f} seconds with: {exc}"
+                f"Function '{func.__name__}' failed after {elapsed_sec:.6f} seconds: {exc}",
+                extra={"function": func.__name__, "duration": round(elapsed_sec, 6)},
             )
             raise
 
@@ -75,11 +73,13 @@ def retry(max_attempts: int = 3) -> Callable:
                     last_exception = exc
                     if attempt < max_attempts:
                         logger.warning(
-                            f"Attempt {attempt}/{max_attempts} for '{func.__name__}' failed: {exc}. Retrying..."
+                            f"Attempt {attempt}/{max_attempts} for '{func.__name__}' failed: {exc}. Retrying...",
+                            extra={"function": func.__name__, "attempt": attempt, "max_attempts": max_attempts},
                         )
                     else:
                         logger.error(
-                            f"Attempt {attempt}/{max_attempts} for '{func.__name__}' failed: {exc}. All retries exhausted."
+                            f"Attempt {attempt}/{max_attempts} for '{func.__name__}' failed: {exc}. All retries exhausted.",
+                            extra={"function": func.__name__, "attempt": attempt, "max_attempts": max_attempts},
                         )
             raise last_exception
 
