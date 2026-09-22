@@ -789,3 +789,86 @@ or
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+---
+
+## 11. Day 8 — Clean Code & SOLID Principles Applied
+
+### 1. Single Responsibility Principle (SRP)
+Every class and function should have **one clear responsibility** and one reason to change.
+- **DataLoader**: Responsible exclusively for loading data and applying retry policies (`src/task_analytics/pipeline.py`).
+- **Pipeline**: Responsible exclusively for step sequence orchestration (`run()`).
+- **Step implementations**: Each step (`CleanDataStep`, `NormalizeDataStep`, `FilterDataStep`, `RemoveDuplicatesStep`) is responsible solely for its specific data transformation.
+
+### 2. Open/Closed Principle (OCP)
+Software entities should be **open for extension, but closed for modification**.
+- The `Pipeline` class processes data by calling `step.execute(data)` on items in `self.steps`.
+- A NEW preprocessing step (e.g. `RemoveDuplicatesStep`) can be created and added to a pipeline **without changing a single line of code in the `Pipeline` class**.
+
+### 3. Dependency Inversion Principle (DIP)
+High-level modules (`Pipeline`) should depend on **abstractions** (`Step` ABC), not on concrete low-level step implementations (`CleanDataStep`, `NormalizeDataStep`).
+- `Pipeline` maintains a list `self.steps: List[Step]` and executes them polymorphically.
+- `Pipeline` contains no concrete type checks like `if step_type == "clean":` or `if isinstance(step, CleanDataStep):`.
+
+### 4. Composition Over Inheritance
+- `Pipeline` is composed of interchangeable `Step` objects passed at runtime rather than deriving logic from a rigid subclassing tree.
+- Inheritance is reserved strictly for defining the shared abstract interface (`Step(ABC)`).
+
+### 5. DRY (Don't Repeat Yourself) & Intentional Duplication
+- **Refactored**: Extracted `Pipeline._count_records(data)` static helper function to eliminate repeated log record counting boilerplate across execution phases.
+- **Intentional Duplication**: Step-specific dictionary and list iteration structures in concrete steps were intentionally kept independent to preserve step readability and prevent tight coupling across step semantics.
+
+### 6. Clean Naming & Refactoring Techniques
+- **Extract Class**: Extracted `DataLoader` from `Pipeline`.
+- **Extract Function**: Extracted `_count_records` static helper in `Pipeline`.
+- **Replace Conditional with Polymorphism**: Polymorphic dispatch via `Step.execute(data)`.
+- **Meaningful Names**: Self-describing variable names (`cleaned_records`, `normalized_record`, `unique_records`, `dict_tuple`).
+
+### 7. How to Add a New Step Without Modifying Pipeline
+
+To add a new data transformation step to any pipeline:
+
+1. Create a subclass inheriting from `Step`:
+```python
+from task_analytics import Step
+
+class RemoveDuplicatesStep(Step):
+    def __init__(self, key: str = "id"):
+        self.key = key
+
+    def execute(self, data):
+        if not isinstance(data, list):
+            return data
+        seen = set()
+        unique = []
+        for item in data:
+            val = item.get(self.key) if isinstance(item, dict) else item
+            if val not in seen:
+                seen.add(val)
+                unique.append(item)
+        return unique
+```
+
+2. Add it directly to your `Pipeline`:
+```python
+pipeline = Pipeline([
+    CleanDataStep(),
+    NormalizeDataStep(),
+    RemoveDuplicatesStep(key="id"),
+])
+pipeline.run(raw_data)
+```
+
+No edits to `Pipeline` are required!
+
+### 8. Running Day 8 Demo & Test Suite
+
+#### Run Day 8 Demonstration Script
+```bash
+python scripts/day8_demo.py
+```
+
+#### Run Full Test Suite (Day 1–Day 8)
+```bash
+python -m unittest discover -s tests -v
+```

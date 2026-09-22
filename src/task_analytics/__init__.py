@@ -39,11 +39,13 @@ from task_analytics.logging_config import (
 )
 from task_analytics.pipeline import (
     CleanDataStep,
+    DataLoader,
     EncapsulationDemo,
     FilterDataStep,
     NormalizeDataStep,
     Pipeline,
     PriorityFilterStep,
+    RemoveDuplicatesStep,
     Step,
     clean_text,
 )
@@ -68,6 +70,8 @@ __all__ = [
     "NormalizeDataStep",
     "FilterDataStep",
     "PriorityFilterStep",
+    "RemoveDuplicatesStep",
+    "DataLoader",
     "Pipeline",
     "EncapsulationDemo",
     "clean_text",
@@ -83,5 +87,6 @@ __all__ = [
     "calculate_task_priority_score",
     "get_task_category_weight",
 ]
+
 
 

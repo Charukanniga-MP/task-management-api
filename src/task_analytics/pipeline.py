@@ -225,6 +225,92 @@ class PriorityFilterStep(Step):
         ]
 
 
+class RemoveDuplicatesStep(Step):
+    """Concrete step that removes duplicate dict records based on a unique key or exact record matching.
+
+    Demonstrates OPEN/CLOSED PRINCIPLE (OCP):
+    This new preprocessing step can be added to any Pipeline without modifying the Pipeline class.
+    """
+
+    def __init__(self, key: Optional[str] = None):
+        """Initialize RemoveDuplicatesStep.
+
+        Args:
+            key: Dictionary key to identify unique records (e.g. 'id' or 'title').
+                 If None, deduplicates identical dictionary or primitive records.
+        """
+        self.key = key
+
+    def execute(self, data: Any) -> Any:
+        """Removes duplicate items from input records.
+
+        Args:
+            data: List of records or single record.
+
+        Returns:
+            Deduplicated list of records or original record.
+        """
+        if not isinstance(data, list):
+            return data
+
+        seen = set()
+        unique_records = []
+        for item in data:
+            if isinstance(item, dict):
+                if self.key is not None:
+                    lookup_val = item.get(self.key)
+                    if lookup_val is not None and lookup_val in seen:
+                        continue
+                    if lookup_val is not None:
+                        seen.add(lookup_val)
+                else:
+                    # Convert dict items to sorted tuple representation for set lookup
+                    dict_tuple = tuple(sorted(item.items()))
+                    if dict_tuple in seen:
+                        continue
+                    seen.add(dict_tuple)
+                unique_records.append(item)
+            else:
+                if item in seen:
+                    continue
+                seen.add(item)
+                unique_records.append(item)
+
+        return unique_records
+
+
+class DataLoader:
+    """Class responsible for fetching/loading data from external sources or callables.
+
+    Demonstrates SINGLE RESPONSIBILITY PRINCIPLE (SRP):
+    Data loading logic (retries, fetching, source connection) is isolated from
+    Pipeline execution orchestration.
+    """
+
+    def __init__(self, max_retries: int = 3):
+        """Initialize DataLoader with retry policy.
+
+        Args:
+            max_retries: Maximum attempt count for retrying failed data loads.
+        """
+        self.max_retries = max_retries
+
+    def load(self, fetcher_fn: Callable[[], Any]) -> Any:
+        """Loads data by executing fetcher_fn with automatic retry logic.
+
+        Args:
+            fetcher_fn: Callable that returns input data or raises an exception.
+
+        Returns:
+            Fetched data.
+        """
+        @retry(max_attempts=self.max_retries)
+        def _fetch():
+            return fetcher_fn()
+
+        return _fetch()
+
+
 class Pipeline:
     """Pipeline composed of executable Step objects executed in sequence.
 
@@ -247,6 +333,13 @@ class Pipeline:
         if steps is not None:
             self._validate_steps(steps)
             self.steps = list(steps)
+
+    @staticmethod
+    def _count_records(data: Any) -> int:
+        """Helper function to calculate record counts for log context metadata (DRY principle)."""
+        if isinstance(data, list):
+            return len(data)
+        return 1 if data is not None else 0
 
     def _validate_steps(self, steps: List[Step]) -> None:
         for i, step in enumerate(steps):
@@ -301,7 +394,7 @@ class Pipeline:
             Final transformed data result.
         """
         pipeline_start = time.perf_counter()
-        initial_count = len(data) if isinstance(data, list) else (1 if data is not None else 0)
+        initial_count = self._count_records(data)
         logger.info(
             "Pipeline execution started.",
             extra={"records_processed": initial_count, "step_count": len(self.steps)},
@@ -318,7 +411,7 @@ class Pipeline:
             try:
                 current_data = step.execute(current_data)
                 step_duration = time.perf_counter() - step_start
-                step_records = len(current_data) if isinstance(current_data, list) else (1 if current_data is not None else 0)
+                step_records = self._count_records(current_data)
                 logger.info(
                     f"Step completed: {step_name}",
                     extra={
@@ -340,18 +433,17 @@ class Pipeline:
                 raise
 
         total_duration = time.perf_counter() - pipeline_start
-        final_count = len(current_data) if isinstance(current_data, list) else (1 if current_data is not None else 0)
+        final_count = self._count_records(current_data)
         logger.info(
             "Pipeline execution completed.",
             extra={"duration": round(total_duration, 6), "records_processed": final_count},
         )
         return current_data
 
-    @retry(max_attempts=3)
     def load_data_source(self, fetcher_fn: Callable[[], Any]) -> Any:
         """Loads data from a data source or stream with automatic retries on failure.
 
-        Decorated with @retry(max_attempts=3) to automatically retry failing data fetches.
+        Delegates to DataLoader (Single Responsibility Principle).
 
         Args:
             fetcher_fn: Callable that returns input data or raises an exception.
@@ -359,7 +451,7 @@ class Pipeline:
         Returns:
             Fetched data.
         """
-        return fetcher_fn()
+        return DataLoader(max_retries=3).load(fetcher_fn)
 
     def run_with_resource(self, resource_name: str, data: Any) -> Any:
         """Executes the pipeline within a managed resource context.
@@ -376,7 +468,6 @@ class Pipeline:
         """
         with TaskResourceManager(resource_name) as resource:
             return self.run(data)
-
 
     def __repr__(self) -> str:
         step_names = [type(s).__name__ for s in self.steps]
@@ -422,3 +513,4 @@ def clean_text(text: str) -> str:
     if not isinstance(text, str):
         raise TypeError("Input must be a string")
     return text.strip().lower()
+

@@ -9,11 +9,13 @@ from abc import ABC
 
 from task_analytics import (
     CleanDataStep,
+    DataLoader,
     EncapsulationDemo,
     FilterDataStep,
     NormalizeDataStep,
     Pipeline,
     PriorityFilterStep,
+    RemoveDuplicatesStep,
     Step,
     clean_text,
 )
@@ -27,6 +29,7 @@ class DummyStep(Step):
 
     def execute(self, data: str) -> str:
         return f"{self.prefix}:{data}"
+
 
 
 class TestStepAbstractClass(unittest.TestCase):
@@ -238,5 +241,62 @@ class TestEncapsulationAndFunctions(unittest.TestCase):
             clean_text(123)  # type: ignore
 
 
+class TestDay8Refactoring(unittest.TestCase):
+    """Tests for Day 8 refactoring, SOLID compliance, OCP, DIP, and DataLoader."""
+
+    def test_remove_duplicates_step_by_key(self):
+        """Verifies RemoveDuplicatesStep removes duplicate records by key."""
+        step = RemoveDuplicatesStep(key="id")
+        data = [
+            {"id": 1, "title": "Task 1"},
+            {"id": 2, "title": "Task 2"},
+            {"id": 1, "title": "Task 1 Duplicate"},
+        ]
+        result = step.execute(data)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["title"], "Task 1")
+        self.assertEqual(result[1]["title"], "Task 2")
+
+    def test_remove_duplicates_step_exact_match(self):
+        """Verifies RemoveDuplicatesStep removes identical records when key is None."""
+        step = RemoveDuplicatesStep(key=None)
+        data = [
+            {"title": "Task 1", "priority": "high"},
+            {"title": "Task 2", "priority": "low"},
+            {"title": "Task 1", "priority": "high"},
+        ]
+        result = step.execute(data)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["title"], "Task 1")
+        self.assertEqual(result[1]["title"], "Task 2")
+
+    def test_ocp_new_step_added_without_changing_pipeline(self):
+        """Verifies a brand new Step class can be added to Pipeline without altering Pipeline logic."""
+        class MultiplyNumbersStep(Step):
+            def execute(self, data):
+                return [x * 2 for x in data if isinstance(x, (int, float))]
+
+        pipeline = Pipeline([CleanDataStep(), MultiplyNumbersStep()])
+        result = pipeline.run([1, 2, None, 3])
+        self.assertEqual(result, [2, 4, 6])
+
+    def test_data_loader_srp(self):
+        """Verifies DataLoader retries failing fetch callables."""
+        calls = 0
+
+        def failing_fetcher():
+            nonlocal calls
+            calls += 1
+            if calls < 2:
+                raise ValueError("Fetch error")
+            return [10, 20]
+
+        loader = DataLoader(max_retries=3)
+        data = loader.load(failing_fetcher)
+        self.assertEqual(data, [10, 20])
+        self.assertEqual(calls, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
+
